@@ -1,66 +1,300 @@
-# URL Shortener API
+# URL Shortener API — DevOps Focused Deployment
 
-## Overview
+## Project Overview
 
-This project is a containerized URL Shortener API built using FastAPI and PostgreSQL.
+This project is a containerized URL Shortener API built using **FastAPI**, **PostgreSQL**, **Docker**, and Docker Compose.
 
-The application accepts a long URL, generates a short unique code, stores it in PostgreSQL, and redirects users when the short URL is accessed.
+The goal of this project was not only to build an API but to understand how backend applications are packaged, deployed, networked, and managed using containerization tools.
 
-Example:
-
-Input:
-
-https://google.com
-
-Output:
-
-http://localhost:8000/Ab12Cd
-
-When users open the short URL, they are redirected to the original URL.
+This project simulates how microservices are deployed in production.
 
 ---
 
-## Architecture
+# Objective
 
-Client → FastAPI → PostgreSQL
+The project solves two problems:
 
-Flow:
+### Application Layer
 
-1. User sends long URL.
-2. FastAPI validates input.
-3. Generates short code.
-4. Stores data in PostgreSQL.
-5. Returns short URL.
-6. Redirect endpoint resolves short code.
+* Accept long URLs
+* Generate short URLs
+* Store mappings
+* Redirect users
+
+### Infrastructure Layer
+
+* Package application into a container
+* Run database in isolated container
+* Connect services using internal Docker networking
+* Persist database using volumes
+* Manage environment variables securely
+* Make deployment portable across environments
 
 ---
 
-## Tools and Technologies Used
+# Architecture
 
-### Backend
+```text
+Client
+   |
+   | HTTP Request
+   ↓
+FastAPI Container
+   |
+   | SQL Query
+   ↓
+PostgreSQL Container
+```
 
-* FastAPI → API framework
-* Uvicorn → ASGI server
-* SQLAlchemy → ORM
-* Pydantic → request validation
+Infrastructure flow:
 
-### Database
+1. User sends API request.
+2. Request reaches FastAPI container.
+3. FastAPI connects to PostgreSQL container over Docker internal network.
+4. Data is stored persistently in Docker volume.
+5. Response returned to client.
 
-* PostgreSQL 16
+---
 
-### Containerization
+# Tech Stack
+
+## Application
+
+* FastAPI
+* Uvicorn
+* SQLAlchemy
+* Pydantic
+
+---
+
+## Infrastructure
 
 * Docker
 * Docker Compose
-
-### Environment Management
-
-* .env file
+* PostgreSQL
+* Environment Variables
 
 ---
 
-## Project Structure
+# Why Docker was used
 
+Traditional deployment problems:
+
+* "Works on my machine" issue
+* Dependency mismatch
+* Python version conflicts
+* Package inconsistency
+
+Docker solves this by packaging:
+
+* application code
+* dependencies
+* runtime
+* startup commands
+
+into a single image.
+
+In this project:
+
+Docker was used to:
+
+* Build isolated Python runtime
+* Install dependencies
+* Run FastAPI server
+* Maintain consistency across systems
+
+Command used:
+
+```bash
+docker build -t url-shortener .
+```
+
+This creates an immutable image.
+
+---
+
+# Why Docker Compose was used
+
+Running multiple containers manually is difficult.
+
+Without Docker Compose:
+
+```bash
+docker run postgres ...
+docker run fastapi ...
+docker network connect ...
+docker volume create ...
+```
+
+This becomes operationally difficult.
+
+Docker Compose solves:
+
+* Multi-container orchestration
+* Networking
+* Dependency management
+* Volume mapping
+* Environment injection
+
+In this project:
+
+Docker Compose manages:
+
+### Service 1: Database
+
+* PostgreSQL container
+* Persistent storage
+* Initialization script
+
+### Service 2: Application
+
+* FastAPI container
+* API exposure
+* Database connectivity
+
+Command:
+
+```bash
+docker compose up --build
+```
+
+This builds and starts everything together.
+
+---
+
+# DevOps Concepts Implemented
+
+---
+
+## 1. Containerization
+
+FastAPI app packaged into Docker image.
+
+Benefits:
+
+* portability
+* reproducibility
+* version control
+
+---
+
+## 2. Multi-container deployment
+
+Application and database separated.
+
+Benefits:
+
+* loose coupling
+* easier scaling
+* service isolation
+
+---
+
+## 3. Service Discovery
+
+FastAPI connects to PostgreSQL using:
+
+```python
+DATABASE_URL=postgresql://admin:admin123@db:5432/url_db
+```
+
+`db` is Docker Compose service name.
+
+Docker automatically resolves it.
+
+No manual IP needed.
+
+Important DevOps concept.
+
+---
+
+## 4. Persistent Storage
+
+Used Docker volume:
+
+```yaml
+volumes:
+  postgres_data:
+```
+
+Purpose:
+
+If container is deleted, database remains.
+
+Production-grade concept.
+
+---
+
+## 5. Bind Mounts
+
+Used:
+
+```yaml
+./app:/app
+```
+
+Purpose:
+
+Sync local code with container.
+
+Benefits:
+
+* live reload
+* fast development
+
+---
+
+## 6. Environment Variable Management
+
+Used `.env`
+
+Stores:
+
+* DB credentials
+* app config
+* URLs
+
+Avoids hardcoding secrets.
+
+Best practice.
+
+---
+
+## 7. Health and Debugging
+
+Used:
+
+```bash
+docker ps
+docker ps -a
+docker logs fastapi_app
+docker exec -it postgres_db psql -U admin -d url_db
+```
+
+Important operational skills.
+
+---
+
+## 8. Rebuild Strategy
+
+Used:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Used for:
+
+* resetting infrastructure
+* rebuilding images
+* testing clean deployments
+
+---
+
+# Project Structure
+
+```text
 url-shortener/
 ├── docker-compose.yml
 ├── .env
@@ -74,80 +308,118 @@ url-shortener/
 │   ├── models.py
 │   └── schemas.py
 └── postgres/
-└── init.sql
+    └── init.sql
+```
 
 ---
 
-## API Endpoints
+# Deployment Workflow
 
-### POST /shorten
+Step 1:
 
-Creates short URL.
+Build images:
 
-Request:
+```bash
+docker compose build
+```
 
-{
-"original_url": "https://google.com"
-}
+Step 2:
 
-Response:
+Start services:
 
-{
-"short_url": "http://localhost:8000/abc123"
-}
+```bash
+docker compose up
+```
 
----
+Step 3:
 
-### GET /{short_code}
+Verify:
 
-Redirects to original URL.
+```bash
+docker ps
+```
 
-Example:
+Step 4:
 
-GET /abc123
+Access API:
 
-Response:
-
-302 Redirect
-
----
-
-## Setup
-
-Clone repo:
-
-git clone <repo>
-
-Run:
-
-docker compose up --build
-
-Open:
-
+```bash
 http://localhost:8000/docs
+```
+
+Step 5:
+
+Check DB:
+
+```bash
+docker exec -it postgres_db psql -U admin -d url_db
+```
 
 ---
 
-## Database
+# Operations Commands
 
-Table: urls
+Stop:
 
-Columns:
+```bash
+docker compose down
+```
 
-* id
-* original_url
-* short_code
+Clean all:
+
+```bash
+docker compose down -v --rmi all
+```
+
+View logs:
+
+```bash
+docker logs fastapi_app
+```
+
+Check running:
+
+```bash
+docker ps
+```
+
+Enter DB:
+
+```bash
+docker exec -it postgres_db psql -U admin -d url_db
+```
 
 ---
 
-## Future Enhancements
+# Production Improvements
 
-* Custom alias support
-* URL expiry
-* Analytics
-* QR code generation
+This project can be extended with:
+
+* Nginx reverse proxy
+* SSL/TLS
+* GitHub Actions CI/CD
+* Kubernetes deployment
+* Health checks
+* Monitoring with Prometheus
+* Logging with ELK
 * Redis caching
 * Rate limiting
-* CI/CD with GitHub Actions
-* Deployment with Nginx reverse proxy
+* Load balancing
 
+---
+
+# DevOps Learning Outcome
+
+This project helped understand:
+
+* Docker image lifecycle
+* Docker Compose orchestration
+* Service-to-service communication
+* Persistent storage
+* Container debugging
+* Infrastructure rebuild
+* Database operations
+* Environment management
+* Multi-service deployment
+
+This project reflects real-world DevOps deployment fundamentals.
