@@ -14,7 +14,7 @@ This project simulates how microservices are deployed in production.
 
 The project solves two problems:
 
-### Application Layer
+## Application Layer
 
 * Accept long URLs
 * Generate short URLs
