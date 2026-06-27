@@ -1,6 +1,6 @@
 # URL Shortener API — DevOps Focused Deployment
 
-## Project Overview
+### Project Overview
 
 This project is a containerized URL Shortener API built using **FastAPI**, **PostgreSQL**, **Docker**, and Docker Compose.
 
